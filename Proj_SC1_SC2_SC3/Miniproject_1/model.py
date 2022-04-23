@@ -10,90 +10,130 @@ class Model () :
     def __init__(self) -> None :
         ## instantiate model + optimizer + loss function + any other stuff you need
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        #self.model = Unet().to(self.device)
+        #self.model = UNet().type(torch.float32).to(self.device)
         self.model = UNET().type(torch.float32).to(self.device)
         self.eta = 1e-3
-        self.optimizer = optim.SGD(self.model.parameters(), lr=self.eta)
+        self.w_decay = 0
+        self.optimizer = optim.SGD(self.model.parameters(), lr=self.eta, weight_decay=self.w_decay)
+        #self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, patience=2, threshold=5, verbose=True)
         self.criterion = nn.MSELoss()
-        self.epochs = 5
-        self.batch_size = 40
+        self.batch_size = 50
+        print('\n####### Model initialization #########')
+        print('\tDevice:\t\t {}'.format(self.device))
+        print('\tLearning rate:\t {}'.format(self.eta))
+        print('\tWeight Decay:\t {}'.format(self.w_decay))
+        print('\tBatch size:\t {}'.format(self.batch_size))
+        print('######################################\n')
 
         pass
 
     def load_pretrained_model(self, path='bestmodel.pth') -> None :
         ## This loads the parameters saved in bestmodel.pth into the model
         self.model.load_state_dict(torch.load(path))
-        pass
 
-    def train(self, train_input, train_target) -> None :
+    def train(self, train_input, train_target, num_epochs) -> None :
         #: train_input : tensor of size (N, C, H, W) containing a noisy version of the images.
         #: train_target : tensor of size (N, C, H, W) containing another noisy version of the same images, which only differs from the input by their noise. 
 
         num_batches = int(train_input.size(0) / self.batch_size)
 
-        for epoch in range(self.epochs):
+        for epoch in range(num_epochs):
             epoch_loss = 0
             for batch in range(0, train_input.size(0), self.batch_size):
                 output = self.model(train_input.narrow(0, batch, self.batch_size).to(self.device))
                 loss = self.criterion(output, train_target.narrow(0, batch, self.batch_size).to(self.device))
                 epoch_loss += loss
+
                 self.model.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                #print('Epoch {}/{},\tloss: {:.4f}'.format(epoch, epochs, loss))
-            print('Epoch {}/{},\tloss: {:.4f}'.format(epoch, self.epochs, epoch_loss/num_batches))
 
-        pass
+                #print('Epoch {}/{},\tloss: {:.4f}'.format(epoch+1, num_epochs, loss))
+
+            epoch_loss_avg = epoch_loss / num_batches
+            print('Epoch {}/{},\tloss: {:.4f}'.format(epoch+1, num_epochs, epoch_loss_avg))
+            #self.scheduler.step()
 
     def predict(self, test_input) -> torch.Tensor :
         #: test_input : tensor of size (N1, C, H, W) that has to be denoised by the trained or the loaded network.
         #: returns a tensor of the size (N1, C, H, W)
-        # output = torch.tensor((), dtype=torch.float16)
-        # for batch in range(0, test_input.size(0), self.batch_size):
-        #     output_batch = self.model(test_input.narrow(0, batch, self.batch_size).to(self.device))
-        #     output = torch.cat((output.to(self.device), output_batch), 1)
-        output = self.model(test_input.to(self.device))
 
+        # TODO problem with memory when predicting entire model
+        # self.model = self.model.to('cpu')
+        # output = self.model(test_input)
+        output = self.model(test_input.to(self.device))
         return output
 
     def save_model(self, path) -> None:
         #: path : String represting the path with name where the model parameters are saved to.
         torch.save(self.model.state_dict(), path)
 
-# From https://github.com/kawori/Noise2Noise_PyTorch/blob/master/unet.py
-class Unet(nn.Module):
+# From https://github.com/joeylitalien/noise2noise-pytorch/tree/master/src
+class UNet(nn.Module):
     def __init__(self):
-        super(Unet, self).__init__()
+        super(UNet, self).__init__()
 
+        # Layers: enc_conv0, enc_conv1, pool1
         self.block1 = nn.Sequential(
-            nn.Conv2d(3, 48, 3, padding=1),
+            nn.Conv2d(3, 48, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
             nn.Conv2d(48, 48, 3, padding=1),
-            nn.MaxPool2d(2)
-        )
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2))
+
+        # Layers: enc_conv(i), pool(i); i=2..5
         self.block2 = nn.Sequential(
-            nn.Conv2d(48, 48, 3, padding=1),
-            nn.MaxPool2d(2)
-        )
+            nn.Conv2d(48, 48, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2))
+
+        # Layers: enc_conv6, upsample5
         self.block3 = nn.Sequential(
-            nn.Conv2d(48, 48, 3, padding=1),
-            nn.ConvTranspose2d(48, 48, 2, 2, output_padding=0)
-        )
+            nn.Conv2d(48, 48, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(48, 48, 3, stride=2, padding=1, output_padding=1))
+            #nn.Upsample(scale_factor=2, mode='nearest'))
+
+        # Layers: dec_conv5a, dec_conv5b, upsample4
         self.block4 = nn.Sequential(
-            nn.Conv2d(96, 96, 3, padding=1),
-            nn.Conv2d(96, 96, 3, padding=1),
-            nn.ConvTranspose2d(96, 96, 2, 2)
-        )
+            nn.Conv2d(96, 96, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(96, 96, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(96, 96, 3, stride=2, padding=1, output_padding=1))
+            #nn.Upsample(scale_factor=2, mode='nearest'))
+
+        # Layers: dec_deconv(i)a, dec_deconv(i)b, upsample(i-1); i=4..2
         self.block5 = nn.Sequential(
-            nn.Conv2d(144, 96, 3, padding=1),
-            nn.Conv2d(96, 96, 3, padding=1),
-            nn.ConvTranspose2d(96, 96, 2, 2)
-        )
+            nn.Conv2d(144, 96, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(96, 96, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(96, 96, 3, stride=2, padding=1, output_padding=1))
+            #nn.Upsample(scale_factor=2, mode='nearest'))
+
+        # Layers: dec_conv1a, dec_conv1b, dec_conv1c,
         self.block6 = nn.Sequential(
-            nn.Conv2d(99, 64, 3, padding=1),
-            nn.Conv2d(64, 32, 3, padding=1),
-            nn.Conv2d(32, 3, 3, padding=1),
-            nn.LeakyReLU(0.1)
-        )
+            nn.Conv2d(96 + 3, 64, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 32, 3, stride=1, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 3, 3, stride=1, padding=1),
+            nn.LeakyReLU(0.1))
+
+        
+        # Initialize weights
+        self._init_weights()
+
+
+    def _init_weights(self):
+        """Initializes weights using He et al. (2015)."""
+
+        for m in self.modules():
+            if isinstance(m, nn.ConvTranspose2d) or isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight.data)
+                m.bias.data.zero_()
+
 
     def forward(self, x):
         # print("input: ", x.shape)
