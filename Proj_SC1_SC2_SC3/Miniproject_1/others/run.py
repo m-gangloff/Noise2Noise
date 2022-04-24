@@ -1,6 +1,5 @@
 import torch
 import matplotlib.pyplot as plt
-#import numpy as np
 import random
 import time
 import sys
@@ -97,15 +96,7 @@ if train:
 else:
     model.load_pretrained_model(path='../bestmodel.pth')
 
-denoised = model.predict(noisy_imgs_val)
-
-print(denoised.max())
-print(denoised.min())
-
-#denoised = np.clip(denoised.detach(), 0, 255)
-denoised[denoised < 0] = 0
-denoised[denoised > 255] = 255
-denoised /= 255
+denoised = model.predict(noisy_imgs_val) / 255
 
 print(denoised.max())
 print(denoised.min())
