@@ -37,8 +37,6 @@ class Model () :
     def load_pretrained_model(self, path=None) -> None :
         ## This loads the parameters saved in bestmodel.pth into the model
         model_path = Path(__file__).parent / "bestmodel.pth" if path is None else path
-        print('\n\n\n#####################\n\n\n')
-        print(model_path)
         self.model.load_state_dict(torch.load(model_path))
 
 

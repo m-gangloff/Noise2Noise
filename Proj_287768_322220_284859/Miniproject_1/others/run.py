@@ -30,7 +30,7 @@ def train(args):
         print('\n#################################')
         print('\nTraining finished in {:.1f} minutes'.format(train_time))
         print('\n#################################\n')
-        model.save_model(args.path_model)
+        model.save_model(args.path_model+'.pth')
     else:
         model.load_pretrained_model(args.path_model+'.pth')
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_model', type=str2bool, default=False)
     parser.add_argument('--path_model', type=str, default='../bestmodel')
     parser.add_argument('--data_folder', type=str, default='../../../')
-    parser.add_argument('--plot_figures', type=str2bool, default=True)
+    parser.add_argument('--plot_figures', type=str2bool, default=False)
     parser.add_argument('--last_lr', type=float, default=1e-1)
     parser.add_argument('--debug', type=str2bool, default=False)
     
