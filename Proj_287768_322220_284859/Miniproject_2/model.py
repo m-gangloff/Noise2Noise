@@ -1,6 +1,7 @@
 from torch import Tensor #for typing purposes
 from torch import empty , cat , arange , zeros
 from torch.nn.functional import fold, unfold
+from pathlib import Path
 import pickle
 
 class Module(object):
@@ -326,8 +327,9 @@ class Model():
    self.batch_size = 50
 
   def load_pretrained_model(self, path='bestmodel.pth') -> None:
-    ## This loads the parameters saved in bestmodel.pth into the model pass
-    self.model.load_state_dict(pickle.load(open(path, 'rb')))
+    #This loads the parameters saved in bestmodel.pth into the model pass
+    model_path = Path(_file_).parent / "bestmodel.pth" if path is None else path
+    self.model.load_state_dict(torch.load(model_path))
     
 
   def train(self, train_input, train_target, num_epochs) -> None:
