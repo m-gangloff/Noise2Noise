@@ -69,5 +69,8 @@ if __name__ == '__main__':
     train(args)
 
     if args.plot_figures:
-        plot_grid_search(args)
+        try:
+            plot_grid_search(args)
+        except:
+            print('No data available for given model.')
     

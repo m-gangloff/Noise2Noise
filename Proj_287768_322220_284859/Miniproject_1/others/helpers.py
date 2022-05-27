@@ -210,7 +210,7 @@ def plot_grid_search(args):
     for b_size in b_sizes:
         for lr in lrs:
             lr = '{:.0e}'.format(lr).replace('0','')
-            with open('./models/unet_no_bnorm_lr'+lr+'_n-05_05_b{}_rnd_results'.format(b_size), "rb") as fp:
+            with open('./models/n2n_lr'+lr+'_n-05_05_b{}_rnd_results'.format(b_size), "rb") as fp:
                 output_psnr, L_tr, L_val, num_batches, train_time = pickle.load(fp)
                 print('Resulting psnr (dB) for lr: '+lr+' b_size: {} is: {:.2f}dB and took {:.2f}min'.format(b_size, output_psnr, train_time))
                 psnrs.append(output_psnr)
@@ -222,7 +222,7 @@ def plot_grid_search(args):
                 L_trs.append(L_tr)
                 L_vals.append(L_val)
 
-    plot_loss_std_val(torch.Tensor(psnrs), torch.Tensor(loss_tr), torch.Tensor(std_tr), torch.Tensor(loss_val), torch.Tensor(std_val), lrs, b_sizes, './models/unet_no_bnorm_ang_pool_-05_05_b8_rnd_lr_opt')
+    plot_loss_std_val(torch.Tensor(psnrs), torch.Tensor(loss_tr), torch.Tensor(std_tr), torch.Tensor(loss_val), torch.Tensor(std_val), lrs, b_sizes, './models/n2n_n-05_05_rnd_results_rnd_lr_b_size_opt')
 
 
 
