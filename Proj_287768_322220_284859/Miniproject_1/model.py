@@ -19,7 +19,7 @@ class Model () :
     def __init__(self, lr=3e-4, b_size=8) -> None :
         ## instantiate model + optimizer + loss function + any other stuff you need
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # self.model = UNet(batch_norm=False).type(torch.float32).to(self.device)
+        #self.model = UNet(batch_norm=False).type(torch.float32).to(self.device)
         self.model = Noise2Noise(batch_norm=False).type(torch.float32).to(self.device)
         self.eta = lr
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.eta)
@@ -37,6 +37,8 @@ class Model () :
     def load_pretrained_model(self, path=None) -> None :
         ## This loads the parameters saved in bestmodel.pth into the model
         model_path = Path(__file__).parent / "bestmodel.pth" if path is None else path
+        print('\n\n\n#####################\n\n\n')
+        print(model_path)
         self.model.load_state_dict(torch.load(model_path))
 
 
