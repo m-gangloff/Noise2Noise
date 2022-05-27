@@ -1,7 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
 import random
-import time
+import argparse
 # Import tqdm if installed
 try:
     from tqdm import tqdm
@@ -175,3 +175,55 @@ def plot_rnd_preds(test_input, denoised, test_target, nb_images=5, show=True):
 
     print('\nPeak Signal-to-Noise Ratio base:\t{:.4f}\n'.format(psnr(test_input, test_target)))
     print('Peak Signal-to-Noise Ratio:\t{:.4f}\n'.format(psnr(denoised, test_target)))
+
+
+
+# https://stackoverflow.com/a/43357954/17079464
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def plot_grid_search(args):
+    lrs = [1e-5, 3e-5, 1e-4, 3e-4, 1e-3]
+    # b_sizes = [args.b_size]
+    # b_sizes = [32, 16, 12, 8, 4]
+    b_sizes = [8]
+
+    psnrs = []
+    loss_tr = []
+    std_tr = []
+    loss_val = []
+    std_val = []
+    
+    
+    L_trs = []
+    L_vals = []
+
+    for b_size in b_sizes:
+        for lr in lrs:
+            lr = '{:.0e}'.format(lr).replace('0','')
+            with open('./models/unet_no_bnorm_lr'+lr+'_n-05_05_b{}_rnd_results'.format(b_size), "rb") as fp:
+                output_psnr, L_tr, L_val, num_batches, train_time = pickle.load(fp)
+                print('Resulting psnr (dB) for lr: '+lr+' b_size: {} is: {:.2f}dB and took {:.2f}min'.format(b_size, output_psnr, train_time))
+                psnrs.append(output_psnr)
+                loss_tr.append(torch.mean(L_tr[0][:num_batches]))
+                std_tr.append(torch.mean(L_tr[1][:num_batches]))
+                loss_val.append(torch.mean(L_val[0][:num_batches]))
+                std_val.append(torch.mean(L_val[1][:num_batches]))
+
+                L_trs.append(L_tr)
+                L_vals.append(L_val)
+
+    plot_loss_std_val(torch.Tensor(psnrs), torch.Tensor(loss_tr), torch.Tensor(std_tr), torch.Tensor(loss_val), torch.Tensor(std_val), lrs, b_sizes, './models/unet_no_bnorm_ang_pool_-05_05_b8_rnd_lr_opt')
+
+
+
+
+
